@@ -25,6 +25,7 @@ source-health layer can report it.
 from __future__ import annotations
 
 import html
+import os
 import re
 from datetime import datetime, timezone
 from urllib.parse import parse_qs, urlencode, urlparse
@@ -187,7 +188,14 @@ def _search_startpage(query: str, count: int) -> list[dict]:
 
 def _search_searxng(query: str, count: int, instance_url: str) -> list[dict]:
     base = instance_url.rstrip("/")
-    url = f"{base}/search?{urlencode({'q': query, 'format': 'json'})}"
+    params = {'q': query, 'format': 'json'}
+    # Fork knob: extra SearXNG query params, e.g. "language=en-GB" or
+    # "language=en-GB&engines=startpage,yahoo". q and format stay ours.
+    extra = os.environ.get("LAST30DAYS_SEARXNG_PARAMS") or ""
+    for key, values in parse_qs(extra).items():
+        if key not in params and values:
+            params[key] = values[-1]
+    url = f"{base}/search?{urlencode(params)}"
     try:
         data = http.get(url, headers={"Accept": "application/json"}, timeout=15, retries=2)
     except http.HTTPError:

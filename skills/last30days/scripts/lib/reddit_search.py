@@ -19,6 +19,7 @@ code is unaffected.
 
 import html as _html
 import json
+import os
 import re
 import sys
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
@@ -252,6 +253,11 @@ def search(
     neither the targeted subreddits nor the global search crowds out the other. Returns ``[]`` on total failure and never raises; failures
     land in the pipeline's failure sink.
     """
+    # Fork knob: LAST30DAYS_REDDIT_SITE_SEARCH=0 skips the site search fragment
+    # on hosts Reddit blocks (HTTP 403), leaving listings + arctic-shift.
+    if os.environ.get("LAST30DAYS_REDDIT_SITE_SEARCH", "").strip() == "0":
+        _log("site search disabled (LAST30DAYS_REDDIT_SITE_SEARCH=0)")
+        return []
     try:
         limit = DEPTH_LIMITS.get(depth, DEPTH_LIMITS["default"])
         global_pages = GLOBAL_PAGE_CAPS.get(depth, GLOBAL_PAGE_CAPS["default"])

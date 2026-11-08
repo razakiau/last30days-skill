@@ -7,12 +7,13 @@ before the planner runs. This is the engine-side equivalent of SKILL.md Steps
 
 from __future__ import annotations
 
+import os
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from typing import Optional
 
-from . import categories, dates, grounding, http, log
+from . import categories, dates, env, grounding, http, log
 
 MAX_SUBS = 10
 
@@ -69,8 +70,17 @@ def _merge_category_peers(topic: str, subreddits: list[str]) -> tuple[list[str],
 
 
 def _has_backend(config: dict) -> bool:
-    """Require a configured search API; the keyless floor is not peer discovery."""
-    return grounding.configured_backend(config) is not None
+    """Require a configured search API; the keyless floor is not peer discovery.
+
+    Fork knob: ``LAST30DAYS_RESOLVE_KEYLESS=1`` accepts the keyless floor
+    (e.g. a SearXNG instance) so subreddit discovery works with no paid key.
+    """
+    if grounding.configured_backend(config) is not None:
+        return True
+    return (
+        os.environ.get("LAST30DAYS_RESOLVE_KEYLESS", "").strip() == "1"
+        and env.keyless_web_allowed(config)
+    )
 
 
 def _extract_subreddits(items: list[dict]) -> list[str]:

@@ -39,6 +39,17 @@ def _is_loopback(host: str) -> bool:
         return False
 
 
+def _trusted_http_hosts() -> set[str]:
+    """Hosts the operator vouches for as a private network hop (fork knob).
+
+    ``LAST30DAYS_TRUSTED_HTTP_HOSTS=litellm`` lets an ``http://litellm:4000``
+    gateway on an isolated container network carry the provider key. Exact
+    hostnames only, comma-separated; empty by default (upstream behaviour).
+    """
+    raw = os.environ.get("LAST30DAYS_TRUSTED_HTTP_HOSTS") or ""
+    return {h.strip().lower() for h in raw.split(",") if h.strip()}
+
+
 def allowed_base_url_override(value: str) -> bool:
     try:
         parts = urlsplit(value)
@@ -46,7 +57,8 @@ def allowed_base_url_override(value: str) -> bool:
     except ValueError:
         return False
     return bool(host) and (
-        parts.scheme == "https" or (parts.scheme == "http" and _is_loopback(host))
+        parts.scheme == "https"
+        or (parts.scheme == "http" and (_is_loopback(host) or host.lower() in _trusted_http_hosts()))
     )
 
 
